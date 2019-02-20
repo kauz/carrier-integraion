@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+
+const program = require('commander');
+const stream = require('stream');
+const fs = require('fs');
+const unzip = require('unzip-stream');
+const csv = require('csvjson');
+const path = require('path');
+
+program.version('1.0.0')
+  .option('-s, --source [file name]', 'Source file name')
+  .option('-d, --destination [dir name]', 'Destination directory name')
+  .parse(process.argv);
+
+let chunks = [];
+
+fs.createReadStream(program.source)
+  .pipe(unzip.Parse())
+  .pipe(stream.Transform({
+    objectMode: true,
+    transform: function (entry, enc, cb) {
+      let filePath = entry.path;
+
+      if (filePath.substr(-4) === '.csv') {
+        entry.pipe(stream.Transform({
+          objectMode: true,
+          transform: function (data) {
+            let options = {delimiter: '||', quote: '"'};
+            let buf = Buffer.from(data);
+            let parsed = buf.toString();
+            let res = csv.toObject(parsed, options);
+            res.forEach(obj => transformData(obj));
+            let out = fs.createWriteStream(path.resolve(program.destination));
+            out.write(JSON.stringify(chunks));
+            cb();
+          }
+        })).on('finish', cb);
+      } else {
+        entry.autodrain();
+        cb();
+      }
+    }
+  }));
+
+
+function transformData(obj) {
+  let entity = {};
+  let dateArr = obj.date.split('/').reverse();
+  entity.name = `${obj.first_name} ${obj.last_name}`;
+  entity.phone = obj.phone.replace(/\(?\)?\s?\-?/g, '');
+  entity.person = {firstName: typeof obj.first_name, lastName: typeof obj.last_name};
+  entity.amount = parseInt(obj.amount) || obj.amount;
+  entity.date = new Date(...dateArr) || obj.date;
+  entity.costCenterNum = obj.cc.replace(/[A-Z]{3}/, '');
+  chunks.push(entity);
+}

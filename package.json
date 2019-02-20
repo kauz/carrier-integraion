@@ -1,0 +1,16 @@
+{
+  "name": "node-gzip",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bin/jsongz",
+  "scripts": {
+    "start": "./bin/jsongz"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^2.19.0",
+    "csvjson": "^5.1.0",
+    "unzip-stream": "^0.3.0"
+  }
+}
